@@ -1,20 +1,21 @@
-﻿using PlatformService.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using PlatformService.Models;
 
 namespace PlatformService.Data;
 
 public class PlatformRepository(AppDbContext dbContext) : IPlatformRepository
 {
-    public bool SaveChanges() => dbContext.SaveChanges() >= 0;
+    public async Task<bool> SaveChangesAsync() => (await dbContext.SaveChangesAsync()) >= 0;
 
-    public IEnumerable<Platform> GetAllPlatforms() => [.. dbContext.Platforms];
+    public async Task<IEnumerable<Platform>> GetAllPlatformsAsync() => await dbContext.Platforms.ToListAsync();
 
-    public Platform GetPlatformById(int id) => dbContext.Platforms.FirstOrDefault(p => p.Id == id);
+    public async Task<Platform> GetPlatformByIdAsync(int id) => await dbContext.Platforms.FirstOrDefaultAsync(p => p.Id == id);
 
-    public void CreatePlatfrom(Platform platform)
+    public async Task CreatePlatfromAsync(Platform platform)
     {
         ArgumentNullException.ThrowIfNull(platform);
 
         dbContext.Platforms.Add(platform);
-        dbContext.SaveChanges();
+        await dbContext.SaveChangesAsync();
     }
 }

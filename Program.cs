@@ -1,6 +1,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using PlatformService.Data;
+using PlatformService.SyncDataServices.Http;
 
 namespace PlatformService;
 
@@ -10,14 +11,31 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        // Add services to the container.
 
+        builder.Services.AddScoped<HttpClient>();
         builder.Services.AddScoped<IPlatformRepository, PlatformRepository>();
+
+        builder.Services.AddScoped<ICommandDataClient, HttpCommandDataClient>();
+
         builder.Services.AddControllers();
-        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
-        builder.Services.AddDbContext<AppDbContext>(opt => opt.UseInMemoryDatabase("Memory"));
+        builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+        builder.Services.AddDbContext<AppDbContext>(opt => 
+        {
+            if (builder.Environment.IsDevelopment())
+            {
+                Console.WriteLine("--> Using InMemoryDatabase");
+                opt.UseInMemoryDatabase("Memory");
+            }
+            else
+            {
+                Console.WriteLine("--> Using SQL Server");
+                Console.WriteLine(builder.Configuration.GetConnectionString("PlatformsConn"));
+                opt.UseSqlServer(builder.Configuration.GetConnectionString("PlatformsConn"));
+            }
+        });
+        Console.WriteLine($"--> CommandService Endpoint {builder.Configuration["CommandServiceApiUrl"]}");
 
         var app = builder.Build();
 
@@ -34,7 +52,7 @@ public class Program
 
         app.MapControllers();
 
-        app.PrepPopulation();
+        app.PrepPopulation(app.Environment.IsProduction());
 
         app.Run();
     }
