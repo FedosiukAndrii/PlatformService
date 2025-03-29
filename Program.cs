@@ -1,5 +1,5 @@
-
 using Microsoft.EntityFrameworkCore;
+using PlatformService.AsyncDataServices;
 using PlatformService.Data;
 using PlatformService.SyncDataServices.Http;
 
@@ -16,12 +16,16 @@ public class Program
         builder.Services.AddScoped<IPlatformRepository, PlatformRepository>();
 
         builder.Services.AddScoped<ICommandDataClient, HttpCommandDataClient>();
+        builder.Services.AddSingleton<MessageBusClientWrapper>();
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<MessageBusClientWrapper>());
+        builder.Services.AddSingleton(sp => sp.GetRequiredService<MessageBusClientWrapper>().Client);
+
 
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-        builder.Services.AddDbContext<AppDbContext>(opt => 
+        builder.Services.AddDbContext<AppDbContext>(opt =>
         {
             if (builder.Environment.IsDevelopment())
             {
