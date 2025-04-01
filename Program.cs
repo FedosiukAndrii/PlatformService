@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PlatformService.AsyncDataServices;
 using PlatformService.Data;
+using PlatformService.SyncDataServices.Grpc;
 using PlatformService.SyncDataServices.Http;
 
 namespace PlatformService;
@@ -23,6 +24,7 @@ public class Program
 
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddGrpc();
         builder.Services.AddSwaggerGen();
         builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
         builder.Services.AddDbContext<AppDbContext>(opt =>
@@ -55,6 +57,8 @@ public class Program
         app.UseAuthorization();
 
         app.MapControllers();
+        app.MapGrpcService<GrpcPlatformService>();
+        app.MapGet("/protos/platforms.proto", async context => await context.Response.WriteAsync(File.ReadAllText("Protos/platforms.proto")));
 
         app.PrepPopulation(app.Environment.IsProduction());
 

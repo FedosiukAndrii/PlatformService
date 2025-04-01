@@ -36,7 +36,7 @@ public static class PrepDb
             db.Platforms.AddRange(
                 new Platform() { Name = ".NET", Publisher = "Microsoft", Cost = "Free" },
                 new Platform() { Name = "SQL Server", Publisher = "Microsoft", Cost = "Free" },
-                new Platform() { Name = "Kubernrtes", Publisher = "Cloud Native Computing Foundation", Cost = "Free" }
+                new Platform() { Name = "Kubernetes", Publisher = "Cloud Native Computing Foundation", Cost = "Free" }
             );
 
             db.SaveChanges();
