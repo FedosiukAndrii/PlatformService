@@ -5,27 +5,23 @@ namespace PlatformService.Data;
 
 public static class PrepDb
 {
-    public static void PrepPopulation(this IApplicationBuilder app, bool isProduction)
+    public static void PrepPopulation(this IApplicationBuilder app)
     {
         using var serviceScope = app.ApplicationServices.CreateScope();
 
-        SeedData(serviceScope.ServiceProvider.GetService<AppDbContext>(), isProduction);
+        SeedData(serviceScope.ServiceProvider.GetService<AppDbContext>());
     }
 
-    private static void SeedData(AppDbContext db, bool isProduction)
+    private static void SeedData(AppDbContext db)
     {
-        Console.WriteLine(isProduction);
-        if (isProduction)
+        Console.WriteLine("--> Attempting to apply migrations...");
+        try
         {
-            Console.WriteLine("--> Attempting to apply migrations...");
-            try
-            {
-                db.Database.Migrate();  
-            }
-            catch(Exception ex)
-            {
-                Console.WriteLine($"--> Couldn't run migration: {ex.Message}");
-            }
+            db.Database.Migrate();  
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine($"--> Couldn't run migration: {ex.Message}");
         }
 
 

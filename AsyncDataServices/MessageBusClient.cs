@@ -1,8 +1,6 @@
-﻿using PlatformService.DTOs;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
-using System.Text.Json;
 
 namespace PlatformService.AsyncDataServices;
 
@@ -47,21 +45,6 @@ public class MessageBusClient : IMessageBusClient, IAsyncDisposable
         {
             Console.WriteLine($"--> Could not connect to the Message Bus: {ex.Message}");
             throw;
-        }
-    }
-
-    public async Task PublishNewPlatform(PlatformPublishedDTO platformPublishedDTO)
-    {
-        var message = JsonSerializer.Serialize(platformPublishedDTO);
-
-        if (_channel?.IsOpen == true)
-        {
-            Console.WriteLine("--> RabbitMQ Connection Open, sending message...");
-            await SendMessage(message);
-        }
-        else
-        {
-            Console.WriteLine("--> RabbitMQ Connection Closed, not sending");
         }
     }
 
@@ -110,8 +93,17 @@ public class MessageBusClient : IMessageBusClient, IAsyncDisposable
     }
 
 
-    private async Task SendMessage(string message)
+    public async Task SendMessage(string message)
     {
+
+        if (_channel?.IsOpen == false)
+        {
+            Console.WriteLine("--> RabbitMQ Connection Closed, not sending");
+            return;
+        }
+
+        Console.WriteLine("--> RabbitMQ Connection Open, sending message...");
+
         var body = Encoding.UTF8.GetBytes(message);
         var props = new BasicProperties
         {

@@ -5,11 +5,12 @@ using PlatformService.Data;
 using PlatformService.DTOs;
 using PlatformService.Models;
 using PlatformService.SyncDataServices.Http;
+using System.ComponentModel.DataAnnotations;
 
 namespace PlatformService.Controllers;
 
 [ApiController, Route("api/[controller]")]
-public class PlatformsController(IPlatformRepository platformRepository, ICommandDataClient commandDataClient, IMessageBusClient messageBus, IMapper mapper) : ControllerBase
+public class PlatformsController(IPlatformRepository platformRepository, ICommandDataClient commandDataClient, IMapper mapper, IOutboxRepository outboxRepository) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetPlatforms()
@@ -35,17 +36,31 @@ public class PlatformsController(IPlatformRepository platformRepository, IComman
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreatePlatform(PlatformCreateDTO platformCreateDTO)
+    public async Task<IActionResult> CreatePlatform([FromBody, Required] PlatformCreateDTO platformCreateDTO)
     {
-        if (platformCreateDTO is not null)
-        {
-            var platformModel = mapper.Map<Platform>(platformCreateDTO);
+        var platformModel = mapper.Map<Platform>(platformCreateDTO);
 
+        // Start a transaction
+        await using var transaction = await platformRepository.BeginTransactionAsync();
+
+        try
+        {
+            // Save the platform
             await platformRepository.CreatePlatfromAsync(platformModel);
             await platformRepository.SaveChangesAsync();
 
             var platformReadDTO = mapper.Map<PlatformReadDTO>(platformModel);
+            var platformPublishedDTO = mapper.Map<PlatformPublishedDTO>(platformReadDTO);
 
+            // Create and save the outbox message
+            var outboxMessage = OutboxMessage.Create("PlatformPublished", platformPublishedDTO);
+            await outboxRepository.AddOutboxMessageAsync(outboxMessage);
+            await outboxRepository.SaveChangesAsync();
+
+            // Commit the transaction
+            await transaction.CommitAsync();
+
+            // Send synchronous HTTP notification outside the transaction
             try
             {
                 await commandDataClient.SendPlatformToCommand(platformReadDTO);
@@ -55,20 +70,13 @@ public class PlatformsController(IPlatformRepository platformRepository, IComman
                 Console.WriteLine($"Could not send synchronously: {ex.Message}");
             }
 
-            try
-            {
-                var platformPublishedDTO = mapper.Map<PlatformPublishedDTO>(platformReadDTO);
-
-                await messageBus.PublishNewPlatform(platformPublishedDTO);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Could not send asynchronously: {ex.Message}");
-            }
-
             return CreatedAtRoute(nameof(GetPlatformById), new { platformReadDTO.Id }, platformReadDTO);
         }
-        else
-            return BadRequest();
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            Console.WriteLine($"Transaction failed: {ex.Message}");
+            throw;
+        }
     }
 }
